@@ -20,8 +20,6 @@ extern "C" {
 #define VERSION_STRING STRINGIFY(MAJOR_VERSION) "." STRINGIFY(MINOR_VERSION) "." STRINGIFY(BUGFIX_VERSION)
 #endif
 
-#define DUMMY_CAST(x) ((struct Dummy*)x)
-
 // custom exception type
 static PyObject *DummyError;
 
