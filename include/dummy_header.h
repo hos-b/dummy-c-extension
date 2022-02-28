@@ -13,7 +13,7 @@ extern "C" {
 #define PyDummy_Print_RETURN void
 #define PyDummy_Print_PROTO (const char* str)
 
-#ifdef DUMMY_MODULE
+#ifdef DUMMY_MODULE_INCLUDE
 static PyDummy_Print_RETURN PyDummy_Print PyDummy_Print_PROTO;
 #else
 static void ** PyDummy_API;
@@ -27,7 +27,12 @@ import_dummy(void) {
 #endif
 
 struct Dummy {
-
+    PyObject_HEAD
+    uint32_t rand_seed;
+    uint32_t toss_count;
+    int32_t rand_int;
+    float rand_float;
+    int32_t rand_flag;
 };
 
 #ifdef __cplusplus
