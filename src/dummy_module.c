@@ -3,12 +3,22 @@
 #include <structmember.h>
 #define DUMMY_MODULE_INCLUDE
 #include <dummy_header.h>
-
 #include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+// version string definition
+#if !defined(MAJOR_VERSION) || !defined(MINOR_VERSION) || !defined(BUGFIX_VERSION)
+#warning "warning: version strings are not defined. using 0.0.0 instead..."
+#define VERSION_STRING "0.0.0"
+#else
+#define _STR(x) #x
+#define STRINGIFY(x) _STR(x)
+#define VERSION_STRING STRINGIFY(MAJOR_VERSION) "." STRINGIFY(MINOR_VERSION) "." STRINGIFY(BUGFIX_VERSION)
+#endif
+
+#define DUMMY_CAST(x) ((struct Dummy*)x)
 
 // custom exception type
 static PyObject *DummyError;
@@ -180,6 +190,12 @@ PyInit_dummy(void)
         Py_DECREF(module);
         return NULL;
     }
+    // add string to module
+    if (PyModule_AddStringConstant(module, "__version__", VERSION_STRING) < 0) {
+        Py_DECREF(&DummyType);
+        Py_DECREF(module);
+        return NULL;
+    }
     // add capsule
     static void *PyDummy_API[PyDummy_API_Pointers];
     PyObject *c_api_object;
@@ -199,7 +215,6 @@ PyInit_dummy(void)
         Py_DECREF(module);
         return NULL;
     }
-
     return module;
 }
 
@@ -207,3 +222,7 @@ PyInit_dummy(void)
 #ifdef __cplusplus
 } // end of extern "C"
 #endif
+
+
+#undef _STR
+#undef STRINGIFY

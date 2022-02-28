@@ -5,19 +5,22 @@ import distutils.cygwinccompiler
 distutils.cygwinccompiler.get_msvcr = lambda: []
 
 version_string = '0.0.1'
-ver_maj, ver_min, ver_fix = version_string.split('.')
+ver_major, ver_minor, ver_bugfix = version_string.split('.')
 
 extension = Extension(
     name = 'dummy',
     sources = ['./src/dummy_module.c'],
     include_dirs = ['./include', np.get_include()],
-    define_macros = [('MAJOR_VERSION' , ver_maj),
-                     ('MINOR_VERSION' , ver_min),
-                     ('BUGFIX_VERSION', ver_fix)],
+    define_macros = [('MAJOR_VERSION' , ver_major),
+                     ('MINOR_VERSION' , ver_minor),
+                     ('BUGFIX_VERSION', ver_bugfix)],
 )
 
 setup(
     name='dummy',
     version=version_string,
-    ext_modules=[extension]
+    author = 'hosein',
+    url = 'https://github.com/hos-b',
+    long_description = "demo C extension",
+    ext_modules=[extension],
 )
