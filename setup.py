@@ -4,7 +4,7 @@ from distutils.core import setup, Extension
 import distutils.cygwinccompiler
 distutils.cygwinccompiler.get_msvcr = lambda: []
 
-version_string = '0.0.1'
+version_string = '1.0.0'
 ver_major, ver_minor, ver_bugfix = version_string.split('.')
 
 extension = Extension(
