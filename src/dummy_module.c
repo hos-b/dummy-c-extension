@@ -18,9 +18,8 @@ PyDummy_Print(const char* str)
 {
     printf("dummy module says: %s\n", str);
 }
-
 // dummy.print
-static PyObject *
+static PyObject*
 dummy_print(PyObject *self, PyObject *args)
 {
     const char *str;
@@ -76,13 +75,33 @@ Dummy_init(struct Dummy *self, PyObject *args, PyObject *kwds)
     srand(self->rand_seed);
     return 0;
 }
+// dummy general getter
+static PyObject*
+Dummy_getter(struct Dummy *self, void *closure)
+{
+    return Py_BuildValue("I", *(uint32_t*)((char*)self + (size_t)closure));
+}
+// dummy general setter
+static int
+Dummy_setter(struct Dummy *self, PyObject *arg, void *closure)
+{
+    uint32_t value;
+    if (arg == NULL) {
+        PyErr_SetString(PyExc_TypeError, "cannot delete class attributes.");
+        return -1;
+    }
+    if (!PyArg_ParseTuple(arg, "I", &value)) {
+        return -1;
+    }
+    *(uint32_t*)((char*)self + (size_t)closure) = value;
+    return 0;
+}
 
 // module method definition
 static PyMethodDef module_methods[] = {
     {"print",  dummy_print, METH_VARARGS, "prints a string object."},
     {NULL, NULL, 0, NULL} // sentinel
 };
-
 // module definition
 static struct PyModuleDef dummy_module = {
     PyModuleDef_HEAD_INIT,
@@ -91,7 +110,6 @@ static struct PyModuleDef dummy_module = {
     .m_size = -1,
     .m_methods = module_methods
 };
-
 // custom type members
 static struct PyMemberDef Dummy_members[] = {
     {"randi_min", T_INT,   offsetof(struct Dummy, randint_min),   0, "minimum for random ints"},
@@ -105,7 +123,12 @@ static PyMethodDef Dummy_methods[] = {
     // {"name", (PyCFunction) Custom_name, METH_NOARGS, "Return the name, combining the first and last name"},
     {NULL}  /* Sentinel */
 };
-
+// getsetters
+static PyGetSetDef Dummy_getsetters[] = {
+    {"seed",       (getter)Dummy_getter, (setter)Dummy_setter, "random seed value", (void*)offsetof(struct Dummy, rand_seed)},
+    {"toss_count", (getter)Dummy_getter, (setter)Dummy_setter, "random toss count", (void*)offsetof(struct Dummy, toss_count)},
+    {NULL}  /* Sentinel */
+};
 // custom type definition
 static PyTypeObject DummyType = {
     PyVarObject_HEAD_INIT(NULL, 0)
@@ -116,9 +139,10 @@ static PyTypeObject DummyType = {
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = Dummy_new,
     .tp_init = (initproc)Dummy_init,
-    .tp_dealloc = (destructor) Dummy_dealloc,
+    .tp_dealloc = (destructor)Dummy_dealloc,
     .tp_members = Dummy_members,
     .tp_methods = Dummy_methods,
+    .tp_getset  = Dummy_getsetters,
 };
 
 // module initialization function

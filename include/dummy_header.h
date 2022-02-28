@@ -5,8 +5,6 @@
 extern "C" {
 #endif
 
-
-
 // C-API defs
 #define PyDummy_API_Pointers 1
 #define PyDummy_Print_INDEX 0
@@ -34,7 +32,6 @@ struct Dummy {
     int32_t randint_max;
     float randfloat_min;
     float randfloat_max;
-
 };
 
 #ifdef __cplusplus
