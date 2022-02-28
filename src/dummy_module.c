@@ -4,6 +4,8 @@
 #define DUMMY_MODULE_INCLUDE
 #include <dummy_header.h>
 #include <stdlib.h>
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#include <numpy/arrayobject.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,25 +60,25 @@ Dummy_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     if (self != NULL) {
         self->rand_seed = 0;
         self->toss_count = 1;
-        self->randint_min = INT_MIN;
-        self->randint_max = INT_MAX;
-        self->randfloat_min = __FLT_MIN__;
-        self->randfloat_max = __FLT_MAX__;
+        self->randint_min = INT_MIN + 2;
+        self->randint_max = INT_MAX - 2;
+        self->randfloat_min = __FLT_MIN__ + 0.2;
+        self->randfloat_max = __FLT_MAX__ - 0.2;
     }
     return (PyObject*)self;
 }
 // dummy.__repr__
 static PyObject *
-Dummy_repr(PyObject *self)
+Dummy_repr(struct Dummy *self)
 {
     // this function does not support unicode from float!
-    PyObject* float_min = PyFloat_FromDouble(DUMMY_CAST(self)->randfloat_min);
-    PyObject* float_max = PyFloat_FromDouble(DUMMY_CAST(self)->randfloat_max);
+    PyObject* float_min = PyFloat_FromDouble(self->randfloat_min);
+    PyObject* float_max = PyFloat_FromDouble(self->randfloat_max);
     PyObject* unicode = PyUnicode_FromFormat(
         "Dummy data type:\nseed = %d, toss count = %d\n"
         "irand range[%i, %i]\nfrand range [%R, %R]",
-        DUMMY_CAST(self)->rand_seed, DUMMY_CAST(self)->toss_count,
-        DUMMY_CAST(self)->randint_min, DUMMY_CAST(self)->randint_max,
+        self->rand_seed, self->toss_count,
+        self->randint_min, self->randint_max,
         float_min, float_max
     );
     Py_XDECREF(float_min);
@@ -91,7 +93,7 @@ Dummy_init(struct Dummy *self, PyObject *args, PyObject *kwds)
                              "min_int", "max_int",
                              "min_float", "max_float",
                              NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "II|iiff", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|Iiiff", kwlist,
                                      &self->rand_seed, &self->toss_count,
                                      &self->randint_min, &self->randint_max,
                                      &self->randfloat_min, &self->randfloat_max)) {
@@ -103,6 +105,94 @@ Dummy_init(struct Dummy *self, PyObject *args, PyObject *kwds)
     }
     srand(self->rand_seed);
     return 0;
+}
+// dummy.frand
+static PyObject*
+Dummy_frand(struct Dummy *self, PyObject *Py_UNUSED(ignored))
+{
+    if (self->randfloat_min >= self->randfloat_max) {
+        PyErr_SetString(DummyError, "float random range is empty (min >= max)");
+    }
+    for (uint32_t i = 0; i < self->toss_count - 1; ++i) {
+        rand();
+    }
+    return PyFloat_FromDouble(
+        self->randfloat_min + (self->randfloat_max - self->randfloat_min) *
+                              (rand() / (float)RAND_MAX)
+    );
+}
+// dummy.irand
+static PyObject*
+Dummy_irand(struct Dummy *self, PyObject *Py_UNUSED(ignored))
+{
+    if (self->randint_min >= self->randint_max) {
+        PyErr_SetString(DummyError, "int random range is empty (min >= max)");
+    }
+    for (uint32_t i = 0; i < self->toss_count - 1; ++i) {
+        rand();
+    }
+    return PyLong_FromLong(
+        self->randint_min + (self->randint_max - self->randint_min) *
+                              (rand() / (float)RAND_MAX)
+    );
+}
+// dummy.frand2d
+static PyObject*
+Dummy_frand2d(struct Dummy *self, PyObject *args)
+{
+    if (self->randint_min >= self->randint_max) {
+        PyErr_SetString(DummyError, "int random range is empty (min >= max)");
+    }
+    uint32_t width, height;
+    if (!PyArg_ParseTuple(args, "II", &height, &width)) {
+        return NULL;
+    }
+    npy_intp dims[2] = {height, width};
+    npy_intp strides[2] = {width * sizeof(float), 1 * sizeof(float)};
+    PyObject* frand_array = PyArray_NewFromDescr(
+        &PyArray_Type, PyArray_DescrFromType(NPY_FLOAT32), 2, dims,
+        strides, NULL, NPY_ARRAY_OWNDATA | NPY_ARRAY_C_CONTIGUOUS,NULL
+    );
+    if (frand_array == NULL) {
+        PyErr_SetString(PyExc_MemoryError, "failed to allocated memory");
+        return NULL;
+    }
+    float* data = PyArray_DATA((PyArrayObject*)frand_array);
+    for (size_t i = 0; i < height * width; ++i) {
+        data[i] = self->randfloat_min +
+                  (self->randfloat_max - self->randfloat_min) *
+                  (rand() / (float)RAND_MAX);
+    }
+    return frand_array;
+}
+// dummy.irand2d
+static PyObject*
+Dummy_irand2d(struct Dummy *self, PyObject *args)
+{
+    if (self->randint_min >= self->randint_max) {
+        PyErr_SetString(DummyError, "int random range is empty (min >= max)");
+    }
+    uint32_t width, height;
+    if (!PyArg_ParseTuple(args, "II", &height, &width)) {
+        return NULL;
+    }
+    npy_intp dims[2] = {height, width};
+    npy_intp strides[2] = {width * sizeof(float), 1 * sizeof(float)};
+    PyObject* irand_array = PyArray_NewFromDescr(
+        &PyArray_Type, PyArray_DescrFromType(NPY_INT32), 2, dims,
+        strides, NULL, NPY_ARRAY_OWNDATA | NPY_ARRAY_C_CONTIGUOUS,NULL
+    );
+    if (irand_array == NULL) {
+        PyErr_SetString(PyExc_MemoryError, "failed to allocated memory");
+        return NULL;
+    }
+    int32_t* data = PyArray_DATA((PyArrayObject*)irand_array);
+    for (size_t i = 0; i < height * width; ++i) {
+        data[i] = (int)(self->randint_min +
+                           (self->randint_max - self->randint_min) *
+                           (rand() / (float)RAND_MAX));
+    }
+    return irand_array;
 }
 // dummy general getter
 static PyObject*
@@ -119,10 +209,13 @@ Dummy_setter(struct Dummy *self, PyObject *arg, void *closure)
         PyErr_SetString(PyExc_TypeError, "cannot delete class attributes.");
         return -1;
     }
-    if (!PyArg_ParseTuple(arg, "I", &value)) {
+    if (!PyArg_Parse(arg, "I", &value)) {
         return -1;
     }
     *(uint32_t*)((char*)self + (size_t)closure) = value;
+    if (closure == (void*)offsetof(struct Dummy, rand_seed)) {
+        srand(value);
+    }
     return 0;
 }
 
@@ -149,7 +242,10 @@ static struct PyMemberDef Dummy_members[] = {
 };
 // custom type functions
 static PyMethodDef Dummy_methods[] = {
-    // {"name", (PyCFunction) Custom_name, METH_NOARGS, "Return the name, combining the first and last name"},
+    {"frand",   (PyCFunction)Dummy_frand,   METH_NOARGS,  "return a random float in the set range"},
+    {"irand",   (PyCFunction)Dummy_irand,   METH_NOARGS,  "return a random integer in the set range"},
+    {"frand2d", (PyCFunction)Dummy_frand2d, METH_VARARGS, "return a random float mat in the set range"},
+    {"irand2d", (PyCFunction)Dummy_irand2d, METH_VARARGS, "return a random int mat in the set range"},
     {NULL}  /* Sentinel */
 };
 // custom type getsetters
@@ -172,14 +268,16 @@ static PyTypeObject DummyType = {
     .tp_members = Dummy_members,
     .tp_methods = Dummy_methods,
     .tp_getset  = Dummy_getsetters,
-    .tp_repr    = Dummy_repr,
-    .tp_str     = Dummy_repr,
+    .tp_repr    = (reprfunc)Dummy_repr,
+    .tp_str     = (reprfunc)Dummy_repr,
 };
 
 // module initialization function
 PyMODINIT_FUNC
 PyInit_dummy(void)
 {
+    // import numpy capsule
+    import_array1(NULL);
     // create module
     PyObject *module;
     module = PyModule_Create(&dummy_module);
