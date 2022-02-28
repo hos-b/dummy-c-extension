@@ -10,6 +10,7 @@
 extern "C" {
 #endif
 
+// custom exception type
 static PyObject *DummyError;
 
 // C-API function
@@ -53,6 +54,18 @@ Dummy_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         self->randfloat_max = __FLT_MAX__;
     }
     return (PyObject*)self;
+}
+// dummy.__repr__
+static PyObject *
+Dummy_repr(struct Dummy* self)
+{
+    return PyUnicode_FromFormat(
+        "Dummy data type:\n seed = %d, toss count = %d\n"
+        "irand range[%i, %i], frand range [%f, %f]",
+        self->rand_seed, self->toss_count,
+        self->randint_min, self->randint_max,
+        self->randfloat_min, self->randfloat_max
+    );
 }
 // dummy.__init__
 static int
@@ -123,7 +136,7 @@ static PyMethodDef Dummy_methods[] = {
     // {"name", (PyCFunction) Custom_name, METH_NOARGS, "Return the name, combining the first and last name"},
     {NULL}  /* Sentinel */
 };
-// getsetters
+// custom type getsetters
 static PyGetSetDef Dummy_getsetters[] = {
     {"seed",       (getter)Dummy_getter, (setter)Dummy_setter, "random seed value", (void*)offsetof(struct Dummy, rand_seed)},
     {"toss_count", (getter)Dummy_getter, (setter)Dummy_setter, "random toss count", (void*)offsetof(struct Dummy, toss_count)},
@@ -143,6 +156,8 @@ static PyTypeObject DummyType = {
     .tp_members = Dummy_members,
     .tp_methods = Dummy_methods,
     .tp_getset  = Dummy_getsetters,
+    .tp_repr    = Dummy_repr,
+    .tp_str     = Dummy_repr,
 };
 
 // module initialization function
