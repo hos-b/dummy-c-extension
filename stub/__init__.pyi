@@ -3,6 +3,12 @@ from typing import Optional
 
 __version__ = ...
 
+def print(msg: str) -> None:
+    """
+    prints a string using printf on the C side
+    """
+    ...
+
 class Dummy:
     def __init__(self, seed: int, toss_count: Optional[int],
                  min_int: Optional[int], max_int: Optional[int],
