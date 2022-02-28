@@ -67,15 +67,21 @@ Dummy_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 }
 // dummy.__repr__
 static PyObject *
-Dummy_repr(struct Dummy* self)
+Dummy_repr(PyObject *self)
 {
-    return PyUnicode_FromFormat(
-        "Dummy data type:\n seed = %d, toss count = %d\n"
-        "irand range[%i, %i], frand range [%f, %f]",
-        self->rand_seed, self->toss_count,
-        self->randint_min, self->randint_max,
-        self->randfloat_min, self->randfloat_max
+    // this function does not support unicode from float!
+    PyObject* float_min = PyFloat_FromDouble(DUMMY_CAST(self)->randfloat_min);
+    PyObject* float_max = PyFloat_FromDouble(DUMMY_CAST(self)->randfloat_max);
+    PyObject* unicode = PyUnicode_FromFormat(
+        "Dummy data type:\nseed = %d, toss count = %d\n"
+        "irand range[%i, %i]\nfrand range [%R, %R]",
+        DUMMY_CAST(self)->rand_seed, DUMMY_CAST(self)->toss_count,
+        DUMMY_CAST(self)->randint_min, DUMMY_CAST(self)->randint_max,
+        float_min, float_max
     );
+    Py_XDECREF(float_min);
+    Py_XDECREF(float_max);
+    return unicode;
 }
 // dummy.__init__
 static int
