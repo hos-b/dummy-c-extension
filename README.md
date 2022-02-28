@@ -9,6 +9,8 @@ this repo demonstrates a basic C <-> Python interface. it exposes C types in Pyt
 * C error handling <--> Python exception class
 * C API <--> Python capsule
 
+in addition, it adds a stub file to the final package, so that the extension is easier to use in IDEs that parse type information.
+
 # Build & Install
 ## windows
 add mingw64/bin to `PATH` and run:
