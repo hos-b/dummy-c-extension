@@ -30,9 +30,11 @@ struct Dummy {
     PyObject_HEAD
     uint32_t rand_seed;
     uint32_t toss_count;
-    int32_t rand_int;
-    float rand_float;
-    int32_t rand_flag;
+    int32_t randint_min;
+    int32_t randint_max;
+    float randfloat_min;
+    float randfloat_max;
+
 };
 
 #ifdef __cplusplus

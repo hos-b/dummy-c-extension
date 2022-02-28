@@ -1,7 +1,10 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
+#include <structmember.h>
 #define DUMMY_MODULE_INCLUDE
 #include <dummy_header.h>
+
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -11,7 +14,8 @@ static PyObject *DummyError;
 
 // C-API function
 static void
-PyDummy_Print(const char* str) {
+PyDummy_Print(const char* str)
+{
     printf("dummy module says: %s\n", str);
 }
 
@@ -29,30 +33,95 @@ dummy_print(PyObject *self, PyObject *args)
     PyDummy_Print(str);
     Py_RETURN_NONE;
 }
+// dummy.__dealloc__
+static void
+Dummy_dealloc(struct Dummy* self)
+{
+    Py_TYPE(self)->tp_free((PyObject *) self);
+}
+// dummy.__new__
+static PyObject*
+Dummy_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+    struct Dummy *self;
+    self = (struct Dummy*)type->tp_alloc(type, 0);
+    if (self != NULL) {
+        self->rand_seed = 0;
+        self->toss_count = 1;
+        self->randint_min = INT_MIN;
+        self->randint_max = INT_MAX;
+        self->randfloat_min = __FLT_MIN__;
+        self->randfloat_max = __FLT_MAX__;
+    }
+    return (PyObject*)self;
+}
+// dummy.__init__
+static int
+Dummy_init(struct Dummy *self, PyObject *args, PyObject *kwds)
+{
+    static char *kwlist[] = {"seed", "toss_count",
+                             "min_int", "max_int",
+                             "min_float", "max_float",
+                             NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "II|iiff", kwlist,
+                                     &self->rand_seed, &self->toss_count,
+                                     &self->randint_min, &self->randint_max,
+                                     &self->randfloat_min, &self->randfloat_max)) {
+        return -1;
+    }
+    if (self->toss_count == 0) {
+        PyErr_SetString(DummyError, "cannot use 0 for toss_count");
+        return -1;
+    }
+    srand(self->rand_seed);
+    return 0;
+}
 
-static PyMethodDef DummyMethods[] = {
+// module method definition
+static PyMethodDef module_methods[] = {
     {"print",  dummy_print, METH_VARARGS, "prints a string object."},
     {NULL, NULL, 0, NULL} // sentinel
 };
 
+// module definition
 static struct PyModuleDef dummy_module = {
     PyModuleDef_HEAD_INIT,
     .m_name = "dummy",
     .m_doc = "Example module that creates an extension type.", // doc
     .m_size = -1,
-    .m_methods = DummyMethods
+    .m_methods = module_methods
 };
 
+// custom type members
+static struct PyMemberDef Dummy_members[] = {
+    {"randi_min", T_INT,   offsetof(struct Dummy, randint_min),   0, "minimum for random ints"},
+    {"randi_max", T_INT,   offsetof(struct Dummy, randint_max),   0, "maximum for random ints"},
+    {"randf_min", T_FLOAT, offsetof(struct Dummy, randfloat_min), 0, "minimum for random floats"},
+    {"randf_max", T_FLOAT, offsetof(struct Dummy, randfloat_max), 0, "maximum for random floats"},
+    {NULL}  /* Sentinel */
+};
+// custom type functions
+static PyMethodDef Dummy_methods[] = {
+    // {"name", (PyCFunction) Custom_name, METH_NOARGS, "Return the name, combining the first and last name"},
+    {NULL}  /* Sentinel */
+};
+
+// custom type definition
 static PyTypeObject DummyType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "dummy.Dummy",
     .tp_doc = "Dummy class",
     .tp_basicsize = sizeof(struct Dummy),
     .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = PyType_GenericNew,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_new = Dummy_new,
+    .tp_init = (initproc)Dummy_init,
+    .tp_dealloc = (destructor) Dummy_dealloc,
+    .tp_members = Dummy_members,
+    .tp_methods = Dummy_methods,
 };
 
+// module initialization function
 PyMODINIT_FUNC
 PyInit_dummy(void)
 {
